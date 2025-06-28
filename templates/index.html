@@ -1,0 +1,204 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dog Product Recommender (Groq LLM Prototype)</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #334155;
+        }
+        .input-group select,
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #475569;
+            background-color: #f8fafc;
+            transition: border-color 0.2s;
+        }
+        .input-group select:focus,
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        button {
+            background-color: #6366f1;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+            border: none;
+        }
+        button:hover {
+            background-color: #4f46e5;
+            transform: translateY(-2px);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+        #recommendation-output {
+            background-color: #f8fafc;
+            border: 1px dashed #94a3b8;
+            border-radius: 12px;
+            padding: 24px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #475569;
+            font-style: italic;
+        }
+        #recommendation-output h3 {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 12px;
+            font-size: 1.25rem;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6366f1;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #ef4444;
+            font-weight: 500;
+        }
+        .note {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-3xl font-bold text-center text-gray-800 mb-4">Marshee Pet Tech Product Recommender</h2>
+        <p class="note">AI powered dog product recommendation system.</p>
+
+        <div class="input-group">
+            <label for="dogBreed">Dog Breed:</label>
+            <input type="text" id="dogBreed" placeholder="e.g., Pug, Golden Retriever" class="rounded-lg">
+        </div>
+
+        <div class="input-group">
+            <label for="dietPreference">Dietary Preference:</label>
+            <select id="dietPreference" class="rounded-lg">
+                <option value="any">Any</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="non-vegetarian">Non-Vegetarian</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="productType">Product Type:</label>
+            <input type="text" id="productType" placeholder="e.g., food, toy, treat, grooming supplies" class="rounded-lg">
+        </div>
+
+        <button onclick="getRecommendation()" class="rounded-xl">Get Recommendation</button>
+
+        <div id="recommendation-output" class="rounded-xl">
+            <p>Your personalized recommendations will appear here.</p>
+        </div>
+    </div>
+
+    <script>
+        async function getRecommendation() {
+            const dogBreed = document.getElementById('dogBreed').value.trim();
+            const dietPreference = document.getElementById('dietPreference').value;
+            const productType = document.getElementById('productType').value.trim();
+            const outputDiv = document.getElementById('recommendation-output');
+
+            // Basic input validation
+            if (!dogBreed || !productType) {
+                outputDiv.innerHTML = '<p class="error-message">Please enter a dog breed and product type.</p>';
+                return;
+            }
+
+            outputDiv.innerHTML = '<div class="loading-spinner"></div><p class="mt-2">Generating recommendation...</p>';
+
+            try {
+                // Send data to your FastAPI backend
+                const response = await fetch("/get_recommendation", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        dog_breed: dogBreed,
+                        diet_preference: dietPreference,
+                        product_type: productType
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Backend error:", errorData);
+                    outputDiv.innerHTML = `<p class="error-message">Error: ${errorData.detail || response.statusText}</p>`;
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.recommendation && data.insight) {
+                    outputDiv.innerHTML = `
+                        <h3 class="text-indigo-700">Your Personalized Recommendation:</h3>
+                        <p class="text-lg font-semibold mb-4 text-gray-800">${data.recommendation}</p>
+                        <h3 class="text-indigo-700">Insight for You:</h3>
+                        <p class="text-md text-gray-700">${data.insight}</p>
+                    `;
+                } else {
+                    outputDiv.innerHTML = '<p class="error-message">Could not parse the recommendation from the server. Please try again.</p>';
+                }
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                outputDiv.innerHTML = `<p class="error-message">An error occurred: ${error.message}. Check console for details.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
